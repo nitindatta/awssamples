@@ -9,6 +9,7 @@
 *.user
 *.userosscache
 *.sln.docstates
+deploy/sampledotnet-deploy.zip
 testfile
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -324,6 +325,7 @@ __pycache__/
 *.btm.cs
 *.odx.cs
 *.xsd.cs
+
 
 # OpenCover UI analysis results
 OpenCover/
