@@ -11,10 +11,6 @@ GO
 
 CREATE TABLE [Transactions] (
     [TransactionId] int NOT NULL IDENTITY,
-    [CreatedBy] nvarchar(max) NULL,
-    [LastUpdatedBy] nvarchar(max) NULL,
-    [CreatedDate] datetime2 NOT NULL,
-    [LastUpdateDate] datetime2 NOT NULL,
     [Name] nvarchar(max) NULL,
     CONSTRAINT [PK_Transactions] PRIMARY KEY ([TransactionId])
 );
@@ -22,7 +18,7 @@ CREATE TABLE [Transactions] (
 GO
 
 INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-VALUES (N'20201002093730_InitialCreate', N'3.1.8');
+VALUES (N'20201002095727_InitialCreate', N'3.1.8');
 
 GO
 

@@ -15,12 +15,9 @@ namespace Demo.Aws.Services
             TransactionRepository = transactionRepository;
         }
 
-        public async Task<Transaction> AddTransaction(string name)
+        public async Task<Transaction> AddTransaction(Transaction transaction)
         {
-            Transaction transaction = new Transaction
-            {
-                Name = name
-            };
+            
             return await TransactionRepository.AddAsync(transaction);
         }      
 
