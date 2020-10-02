@@ -16,6 +16,8 @@ namespace Demo.Aws
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddSwaggerGen();
+            services.AddControllers();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -25,7 +27,14 @@ namespace Demo.Aws
             {
                 app.UseDeveloperExceptionPage();
             }
+            app.UseSwagger();
 
+            // Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.),
+            // specifying the Swagger JSON endpoint.
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+            });
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>
@@ -34,7 +43,9 @@ namespace Demo.Aws
                 {
                     await context.Response.WriteAsync("Hello World!");
                 });
+                 endpoints.MapControllers();
             });
+           
         }
     }
 }
