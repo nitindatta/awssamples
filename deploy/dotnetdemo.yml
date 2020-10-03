@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  AWS CloudFormation Sample Template Dotnet Hello World on AWS: Sample template
+  AWS CloudFormation Template f0r Dotnet Hello World on AWS: Sample template
   showing how to create an Elastic Beanstalk dot net hello world environment in a VPC. The stack
   contains 3 subnets: the first subnet is public and contains application.
   The second and third subnet are private  and SQL DB Instance.
@@ -21,6 +21,17 @@ Parameters:
     Default: 0.0.0.0/0
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid CIDR range of the form x.x.x.x/x.
+
+  SQSQueueName:
+    Description: Beanstalk Host EC2 instance type
+    Type: String
+    Default: demodotnet
+
+  DBName:
+    Description: Beanstalk Host EC2 instance type
+    Type: String
+    Default: demodb
+
   EC2InstanceType:
     Description: Beanstalk Host EC2 instance type
     Type: String
@@ -38,14 +49,14 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
-  DBPassword:
-    NoEcho: 'true'
-    Type: String
-    Description: Test database admin account password
-    MinLength: '8'
-    MaxLength: '41'
-    AllowedPattern: '[a-zA-Z0-9]*'
-    ConstraintDescription: must contain only alphanumeric characters.
+  # DBPassword:
+  #   NoEcho: 'true'
+  #   Type: String
+  #   Description: Test database admin account password
+  #   MinLength: '8'
+  #   MaxLength: '41'
+  #   AllowedPattern: '[a-zA-Z0-9]*'
+  #   ConstraintDescription: must contain only alphanumeric characters.
 
 Mappings:
   SubnetConfig:
@@ -381,27 +392,28 @@ Resources:
       Description: 64bit Windows Server 2019 Configuration Version 1.0
       SolutionStackName: 64bit Windows Server 2019 v2.5.9 running IIS 10.0
       OptionSettings:
-        # - Namespace: 'aws:elasticbeanstalk:application:environment'
-        #   OptionName: EF_CONNECTION_STRING
-        #   Value: !Join
-        #     - ''
-        #     - - 'Server='
-        #       - !GetAtt 
-        #         - SampleDB
-        #         - Endpoint.Address
-        #       - ';Database='
-        #       - !GetAtt 
-        #         - SampleDB
-        #         - Endpoint.Port
-              #- /sampledb
-              #Server=myServerAddress;Database=myDataBase;User Id=myUsername; Password=myPassword
-        # - Namespace: 'aws:elasticbeanstalk:application:environment'
-        #   OptionName: param1
-        #   Value: !Ref DBUser
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: ConnectionStrings__DemoDb
+          Value: !Join
+            - ''
+            - - 'Server='
+              - !GetAtt 
+                - SampleDB
+                - Endpoint.Address
+              - ';Database='
+              - !Ref DBName
+              - ';User Id='
+              - !Ref DBUser
+              - ';Password='
+              - !Join ['', ['{{resolve:secretsmanager:', !Ref DBSecret, ':SecretString:password}}' ]]
 
-        # - Namespace: 'aws:elasticbeanstalk:application:environment'
-        #   OptionName: param2
-        #   Value: !Ref DBPassword
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: sqsqueue
+          Value: !Ref SQSQueue
+  
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: ASPNETCORE_ENVIRONMENT
+          Value: 'qa'
 
         - Namespace: 'aws:elasticbeanstalk:environment'
           OptionName: EnvironmentType
@@ -442,8 +454,18 @@ Resources:
 
           OptionName: IamInstanceProfile
           Value: !Ref WebServerInstanceProfile
- 
-  # DB Set Up--------------------------------------------#
+# DB Set Up--------------------------------------------#
+  DBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: "SqlUserSecret"
+      Description: RDS database auto-generated user password
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${DBUser}"}'
+        GenerateStringKey: "password"
+        PasswordLength: 30
+        ExcludeCharacters: '"@/\'
+  
   DBInstanceSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -475,17 +497,44 @@ Resources:
       MasterUsername: !Ref DBUser
       DBInstanceClass: db.t2.micro
       AllocatedStorage: '20'
-      MasterUserPassword: !Ref DBPassword
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref DBSecret, ':SecretString:password}}' ]]
       VPCSecurityGroups:
       - !GetAtt DBInstanceSecurityGroup.GroupId
       DBSubnetGroupName: !Ref DBSubnetGroup
 
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties: 
+      QueueName: !Ref SQSQueueName
+      KmsDataKeyReusePeriodSeconds: '86400'
+      MessageRetentionPeriod: '120'
+
+  SampleSQSPolicy: 
+    Type: AWS::SQS::QueuePolicy
+    Properties: 
+      Queues: 
+        - !Ref SQSQueue
+      PolicyDocument: 
+        Statement: 
+          - 
+            Action: 
+              - "SQS:SendMessage" 
+              - "SQS:ReceiveMessage"
+            Effect: "Allow"
+            Resource: !GetAtt SQSQueue.Arn
+            Principal:
+              AWS: 
+                - !Ref "AWS::AccountId"
+
 Outputs:
   URL:
     Description: The URL of the Elastic Beanstalk environment
-    Value: !Join 
+    Value: !Join
       - ''
       - - 'http://'
         - !GetAtt 
           - SampleEnvironment
           - EndpointURL
+  SQSUrl:
+    Description: SQS Queue for demo application
+    Value: !Ref SQSQueue

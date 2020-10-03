@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using Demo.Aws.Services.Interfaces;
 using Demo.Aws.Services;
 using Microsoft.Extensions.Configuration;
+using Amazon.SQS;
+using Amazon;
 
 namespace Demo.Aws
 {
@@ -33,11 +35,12 @@ namespace Demo.Aws
             services.AddControllers();
             services                
                 .AddScoped<ITransactionService, TransactionService>()              
-                .AddScoped(typeof(IAsyncRepository<>), typeof(Repository<>));
-
+                .AddScoped(typeof(IAsyncRepository<>), typeof(Repository<>))
+                .AddSingleton<IAmazonSQS,AmazonSQSClient>();
             services.AddDbContext<TransactionContext>(c =>
                 c.UseSqlServer(Configuration.GetConnectionString("DemoDb")),
                 ServiceLifetime.Scoped);
+            //services.Configure<AppSettings>(Configuration);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -49,6 +52,8 @@ namespace Demo.Aws
                 app.UseDeveloperExceptionPage();
             }
             app.UseSwagger();
+            //Pick from config :)
+            AWSConfigs.AWSRegion = "us-east-1";
 
             // Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.),
             // specifying the Swagger JSON endpoint.

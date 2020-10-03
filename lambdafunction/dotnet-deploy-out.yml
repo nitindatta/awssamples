@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: An AWS Lambda application that calls the Lambda API.
+Resources:
+  DotnetReceiveEvent:
+    Type: AWS::Serverless::Function
+    Properties:
+      Events:
+        SQS:
+          Type: SQS
+          Properties:
+            BatchSize: 5
+            Enabled: true
+            Queue: arn:aws:sqs:us-east-1:862654540448:demodotnet
+      Handler: Demo.Aws.Lambda::Demo.Aws.LambdaFunction.Function::FunctionHandler
+      Runtime: dotnetcore3.1
+      CodeUri: s3://elasticbeanstalk-dotnet-us-east-1/d07b9b8bb196fc82bb3f063014bd7f77
+      Description: Receive Transaction from SQS
+      MemorySize: 128
+      Timeout: 9
+      Policies:
+      - AWSLambdaBasicExecutionRole
+      - SQSPollerPolicy:
+          QueueName: demodotnet
+      Tracing: Active
