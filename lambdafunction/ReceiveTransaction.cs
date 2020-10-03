@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Amazon;
 using Amazon.Util;
 using Amazon.Lambda;
-//using Amazon.Lambda.M;
 using Amazon.Lambda.Core;
 using Amazon.Lambda.SQSEvents;
 using System.Text.Json;
@@ -27,8 +26,7 @@ namespace Demo.Aws.LambdaFunction
         foreach (var trans in invocationEvent.Records)
         {            
             var transaction = JsonSerializer.Deserialize<Transaction>(trans.Body);
-             LambdaLogger.Log("Transaction: " + transaction);
-             
+             LambdaLogger.Log("Transaction: " + transaction);             
         }
       }
       catch
