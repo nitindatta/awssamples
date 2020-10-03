@@ -22,15 +22,25 @@ Parameters:
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid CIDR range of the form x.x.x.x/x.
 
-  SQSQueueName:
-    Description: Beanstalk Host EC2 instance type
+  S3CodeBucket:
+    Description: Location S3 bucket for code artifacts.
     Type: String
-    Default: demodotnet
+    Default: dotnet-helloworld-us-east-1
+
+  S3CodeWebCodeKey:
+    Description: Location S3 bucket for code artifacts.
+    Type: String
+    Default: dotnet-helloworld-deploy.zip
+
+  SQSQueueName:
+    Description: SQS Queue For Async Messages.
+    Type: String
+    Default: dotnet-helloworld
 
   DBName:
     Description: Beanstalk Host EC2 instance type
     Type: String
-    Default: demodb
+    Default: dotnet-helloworld
 
   EC2InstanceType:
     Description: Beanstalk Host EC2 instance type
@@ -48,15 +58,6 @@ Parameters:
     MaxLength: '16'
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
-
-  # DBPassword:
-  #   NoEcho: 'true'
-  #   Type: String
-  #   Description: Test database admin account password
-  #   MinLength: '8'
-  #   MaxLength: '41'
-  #   AllowedPattern: '[a-zA-Z0-9]*'
-  #   ConstraintDescription: must contain only alphanumeric characters.
 
 Mappings:
   SubnetConfig:
@@ -367,18 +368,15 @@ Resources:
       Description: Version 1.0
       ApplicationName: !Ref SampleApplication
       SourceBundle:
-        S3Bucket: !Join 
-          - '-'
-          - - elasticbeanstalk-dotnet
-            - !Ref 'AWS::Region'
-        S3Key: sampledotnet-deploy.zip
+        S3Bucket: !Ref S3CodeBucket
+        S3Key: !Ref S3CodeWebCodeKey
 
   SampleEnvironment:
     Type: 'AWS::ElasticBeanstalk::Environment'
     Properties:
       ApplicationName: !Ref SampleApplication
-      EnvironmentName: 'SampleDotNet'
-      Description: AWS Elastic Beanstalk Environment running Dotnet Sample Application
+      EnvironmentName: 'dotnet-helloworld'
+      Description: AWS Elastic Beanstalk Environment running Dotnet Sample Hello World Application
       VersionLabel: !Ref SampleApplicationVersion
       TemplateName: !Ref SampleConfigurationTemplate
       Tier:
@@ -515,10 +513,10 @@ Resources:
       Queues: 
         - !Ref SQSQueue
       PolicyDocument: 
-        Statement: 
+        Statement:
           - 
             Action: 
-              - "SQS:SendMessage" 
+              - "SQS:SendMessage"
               - "SQS:ReceiveMessage"
             Effect: "Allow"
             Resource: !GetAtt SQSQueue.Arn
@@ -538,3 +536,7 @@ Outputs:
   SQSUrl:
     Description: SQS Queue for demo application
     Value: !Ref SQSQueue
+
+  SQSArn:
+    Description: SQS Arn for demo application
+    Value: !GetAtt SQSQueue.Arn
