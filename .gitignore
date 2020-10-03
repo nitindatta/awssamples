@@ -8,6 +8,8 @@
 *.suo
 *.user
 *.userosscache
+*.zip
+/deploy
 *.sln.docstates
 deploy/sampledotnet-deploy.zip
 testfile
