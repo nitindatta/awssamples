@@ -1,7 +1,60 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: An AWS Lambda application that calls the Lambda API.
+Parameters:
+  WebApiStackName:
+    Description: Web Api Stack Name.
+    Type: String
+    Default: dotnet-helloworld
+  S3BucketName:
+    Description: Web Api Stack Name.
+    Type: String
+    Default: dotnet-helloworld-lambda
 Resources:
+  S3BucketInput:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName:
+        Ref: S3BucketName
+  BucketPolicyLambda:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: S3BucketInput
+      PolicyDocument:
+        Statement:
+        - Action:
+          - s3:GetObject
+          - s3:PutObject
+          Effect: Allow
+          Resource:
+            Fn::Join:
+            - /
+            - - Fn::GetAtt:
+                - S3BucketInput
+                - Arn
+              - '*'
+          Principal:
+            AWS:
+            - Fn::GetAtt:
+              - LambdaAuthRole
+              - Arn
+  LambdaAuthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
   DotnetReceiveEvent:
     Type: AWS::Serverless::Function
     Properties:
@@ -9,17 +62,24 @@ Resources:
         SQS:
           Type: SQS
           Properties:
-            BatchSize: 5
+            BatchSize: 2
             Enabled: true
-            Queue: arn:aws:sqs:us-east-1:862654540448:demodotnet
+            Queue:
+              Fn::ImportValue:
+                Fn::Sub: ${WebApiStackName}-SQSQueueArn
       Handler: Demo.Aws.Lambda::Demo.Aws.LambdaFunction.Function::FunctionHandler
       Runtime: dotnetcore3.1
-      CodeUri: s3://elasticbeanstalk-dotnet-us-east-1/d07b9b8bb196fc82bb3f063014bd7f77
+      CodeUri: s3://dotnet-helloworld-us-east-1/3a171fb2c3c22ff572d4ab2e7f01bee1
       Description: Receive Transaction from SQS
       MemorySize: 128
-      Timeout: 9
-      Policies:
-      - AWSLambdaBasicExecutionRole
-      - SQSPollerPolicy:
-          QueueName: demodotnet
-      Tracing: Active
+      Timeout: 30
+      Environment:
+        Variables:
+          S3Bucket:
+            Ref: S3BucketInput
+          S3BucketRegion:
+            Ref: AWS::Region
+      Role:
+        Fn::GetAtt:
+        - LambdaAuthRole
+        - Arn

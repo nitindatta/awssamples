@@ -198,6 +198,12 @@ Resources:
       PortRange:
         From: '3389'
         To: '3389'
+
+  # PublicSubnetNetworkAclAssociation:
+  #   Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+  #   Properties:
+  #     SubnetId: !Ref PublicSubnet
+  #     NetworkAclId: !Ref PublicNetworkAcl
   # -----------Start Db Private SubNet -------------------------------#
   DbSubnetAz1:
     Type: 'AWS::EC2::Subnet'
@@ -275,8 +281,9 @@ Resources:
       Egress: 'false'
       CidrBlock: 0.0.0.0/0
       PortRange:
-        From: '0'
-        To: '65535'
+        From: '1433'
+        To: '1433'
+
   OutBoundPrivateNetworkAclEntry:
     Type: 'AWS::EC2::NetworkAclEntry'
     Properties:
@@ -289,6 +296,7 @@ Resources:
       PortRange:
         From: '0'
         To: '65535'
+
   PrivateSubnetNetworkAclAssociation:
     Type: 'AWS::EC2::SubnetNetworkAclAssociation'
     Properties:
@@ -400,10 +408,10 @@ Resources:
                 - Endpoint.Address
               - ';Database='
               - !Ref DBName
-              - ';User Id='
-              - !Ref DBUser
-              - ';Password='
-              - !Join ['', ['{{resolve:secretsmanager:', !Ref DBSecret, ':SecretString:password}}' ]]
+              # - ';User Id='
+              # - !Ref DBUser
+              # - ';Password='
+              # - !Join ['', ['{{resolve:secretsmanager:', !Ref DBSecret, ':SecretString:password}}' ]]
 
         - Namespace: 'aws:elasticbeanstalk:application:environment'
           OptionName: sqsqueue
@@ -462,7 +470,7 @@ Resources:
         SecretStringTemplate: !Sub '{"username": "${DBUser}"}'
         GenerateStringKey: "password"
         PasswordLength: 30
-        ExcludeCharacters: '"@/\'
+        ExcludeCharacters: '"@/\='
   
   DBInstanceSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -540,3 +548,11 @@ Outputs:
   SQSArn:
     Description: SQS Arn for demo application
     Value: !GetAtt SQSQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-SQSQueueArn'
+
+  SQSQueueName:
+    Description: SQS Arn for demo application
+    Value: !GetAtt SQSQueue.QueueName
+    Export:
+      Name: !Sub '${AWS::StackName}-SQSQueueName'
