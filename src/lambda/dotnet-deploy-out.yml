@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: An AWS Lambda application that calls the Lambda API.
+Description: An AWS Lambda application that calls the Lambda API. And scheduled funtion
+  job
 Parameters:
   WebApiStackName:
     Description: Web Api Stack Name.
@@ -69,7 +70,7 @@ Resources:
                 Fn::Sub: ${WebApiStackName}-SQSQueueArn
       Handler: Demo.Aws.Lambda::Demo.Aws.LambdaFunction.Function::FunctionHandler
       Runtime: dotnetcore3.1
-      CodeUri: s3://dotnet-helloworld-us-east-1/3a171fb2c3c22ff572d4ab2e7f01bee1
+      CodeUri: s3://dotnet-helloworld-us-east-1/ae7a0ae788784d9b60db3db2f39bffa9
       Description: Receive Transaction from SQS
       MemorySize: 128
       Timeout: 30
@@ -82,4 +83,36 @@ Resources:
       Role:
         Fn::GetAtt:
         - LambdaAuthRole
+        - Arn
+  DotnetScheduledJob:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: Demo.Aws.Lambda::Demo.Aws.LambdaFunction.ScheduleJob::FunctionHandler
+      Runtime: dotnetcore3.1
+      CodeUri: s3://dotnet-helloworld-us-east-1/ae7a0ae788784d9b60db3db2f39bffa9
+      Description: Receive Scheduled Event
+      MemorySize: 128
+      Timeout: 30
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule
+      ScheduleExpression: rate(5 minutes)
+      State: ENABLED
+      Targets:
+      - Arn:
+          Fn::GetAtt:
+          - DotnetScheduledJob
+          - Arn
+        Id: TargetFunctionV1
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: DotnetScheduledJob
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - ScheduledRule
         - Arn

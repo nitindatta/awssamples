@@ -63,12 +63,14 @@ Mappings:
   SubnetConfig:
     VPC:
       CIDR: 10.0.0.0/16
-    Public:
+    Public1:
       CIDR: 10.0.0.0/24
-    Private1:
+    Public2:
       CIDR: 10.0.1.0/24
-    Private2:
+    Private1:
       CIDR: 10.0.2.0/24
+    Private2:
+      CIDR: 10.0.3.0/24
 
   AWSInstanceType2Arch:
     t1.micro:
@@ -104,19 +106,41 @@ Resources:
           Value: !Ref 'AWS::StackId'
         - Key: Network
           Value: Public
-  PublicSubnet:
+  PublicSubnet1:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
+      AvailabilityZone:
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: ""
       CidrBlock: !FindInMap 
         - SubnetConfig
-        - Public
+        - Public1
         - CIDR
       Tags:
         - Key: Application
           Value: !Ref 'AWS::StackId'
         - Key: Network
-          Value: Public
+          Value: Public1
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone:
+        Fn::Select: 
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - Public2
+        - CIDR
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: Public2
+
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
@@ -147,10 +171,16 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  PublicSubnetRouteTableAssociation:
+  PublicSubnetRouteTableAssociation1:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
 
   PublicNetworkAcl:
@@ -407,11 +437,7 @@ Resources:
                 - SampleDB
                 - Endpoint.Address
               - ';Database='
-              - !Ref DBName
-              # - ';User Id='
-              # - !Ref DBUser
-              # - ';Password='
-              # - !Join ['', ['{{resolve:secretsmanager:', !Ref DBSecret, ':SecretString:password}}' ]]
+              - !Ref DBName              
 
         - Namespace: 'aws:elasticbeanstalk:application:environment'
           OptionName: sqsqueue
@@ -423,11 +449,31 @@ Resources:
 
         - Namespace: 'aws:elasticbeanstalk:environment'
           OptionName: EnvironmentType
-          Value: 'SingleInstance'
+          Value: 'LoadBalanced'
+        
+        - Namespace: 'aws:elasticbeanstalk:environment'
+          OptionName: LoadBalancerIsShared
+          Value: 'false'
+
+        - Namespace: 'aws:elasticbeanstalk:environment'
+          OptionName: LoadBalancerType
+          Value: 'application'
+
+        - Namespace: 'aws:autoscaling:asg'
+          OptionName: MinSize
+          Value: '1'
+
+        - Namespace: 'aws:autoscaling:asg'
+          OptionName: MaxSize
+          Value: '1'
+
+        - Namespace: 'aws:ec2:vpc'
+          OptionName: ELBSubnets
+          Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ] ]
 
         - Namespace: 'aws:autoscaling:launchconfiguration'
           OptionName: RootVolumeType
-          Value: 'gp2'          
+          Value: 'gp2'
 
         - Namespace: 'aws:autoscaling:launchconfiguration'
           OptionName: RootVolumeSize
@@ -454,8 +500,12 @@ Resources:
           Value: !Ref VPC
 
         - Namespace: 'aws:ec2:vpc'
+          OptionName: AssociatePublicIpAddress
+          Value: 'true'          
+
+        - Namespace: 'aws:ec2:vpc'
           OptionName: Subnets
-          Value: !Ref PublicSubnet
+          Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ] ]
         - Namespace: 'aws:autoscaling:launchconfiguration'
 
           OptionName: IamInstanceProfile
@@ -531,7 +581,6 @@ Resources:
             Principal:
               AWS: 
                 - !Ref "AWS::AccountId"
-
 Outputs:
   URL:
     Description: The URL of the Elastic Beanstalk environment
@@ -556,3 +605,4 @@ Outputs:
     Value: !GetAtt SQSQueue.QueueName
     Export:
       Name: !Sub '${AWS::StackName}-SQSQueueName'
+

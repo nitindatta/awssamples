@@ -1,7 +1,7 @@
   
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: An AWS Lambda application that calls the Lambda API.
+Description: An AWS Lambda application that calls the Lambda API. And scheduled funtion job
 
 Parameters:
   WebApiStackName:
@@ -76,6 +76,47 @@ Resources:
           S3Bucket: !Ref S3BucketInput
           S3BucketRegion: !Ref 'AWS::Region'
       Role: !GetAtt LambdaAuthRole.Arn
+
+  DotnetScheduledJob:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: Demo.Aws.Lambda::Demo.Aws.LambdaFunction.ScheduleJob::FunctionHandler
+      Runtime: dotnetcore3.1
+      CodeUri: helloworld-lambda.zip
+      Description: Receive Scheduled Event
+      MemorySize: 128
+      Timeout: 30
+  # Schedule Function
+  ScheduledRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: "ScheduledRule"
+      ScheduleExpression: "rate(5 minutes)"
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+              - "DotnetScheduledJob"
+              - "Arn"
+          Id: "TargetFunctionV1"
+
+  PermissionForEventsToInvokeLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "DotnetScheduledJob"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "ScheduledRule"
+          - "Arn"
+      # Environment:
+      #   Variables:
+      #     S3Bucket: !Ref S3BucketInput
+      #     S3BucketRegion: !Ref 'AWS::Region'
+      # Role: !GetAtt LambdaAuthRole.Arn
 
       # Function's execution role
       # Policies:
